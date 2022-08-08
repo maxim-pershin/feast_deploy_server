@@ -1,0 +1,91 @@
+# This version hides the underlying postgres database on a backend network
+# different from the frontend network on which nginx interfaces mlflow.
+# And mlflow is hidden behind nginx, allowing user auth to be implemented.
+#
+# Have the following environment vars set in shell before running docker-compose
+# (suggested values here but can use whatever desired):
+# export DB_NAME=mlflowdb
+# export DB_USER=postgres
+
+services:
+
+    db:
+        restart: always
+        image: postgres:latest
+        container_name: mlflow_db
+        expose:
+            - ${DB_PORT}
+        networks:
+            - backend
+        environment:
+            - MUID=$UID
+            - MGID=$GID
+            - POSTGRES_DB=${DB_NAME}
+            - POSTGRES_USER=${DB_USER}
+            - POSTGRES_PASSWORD=${DB_PW}
+        volumes:
+            - db_datapg:/var/lib/postgresql/data
+
+    mlflowsftp:
+        restart: always
+        image: atmoz/sftp
+        container_name: mlflowsftp
+        working_dir: "/home/mlflow"
+        volumes:
+            - ./mlflow/artifacts:/home/mlflow/artifacts
+            - ./keys/ssh_sftp_key.pub:/home/mlflow/.ssh/keys/ssh_sftp_key.pub:ro
+            - ./keys/ssh_sftp_key:/etc/ssh/ssh_host_ed25519_key:ro
+        command: mlflow::::artifacts
+#        command: mlflow::1001 labs:pass:1002
+        ports:
+          - "2222:22"
+        networks:
+            - frontend
+            - backend
+
+    mlflowserver:
+        restart: always
+        build: ./mlflow
+        image: mlflowserver
+        container_name: mlflowserver
+        working_dir: "/mlflowserver"
+        networks:
+            - frontend
+            - backend
+        environment:
+            - BACKEND=postgresql://${DB_USER}:${DB_PW}@db:${DB_PORT}/${DB_NAME}
+            - ARTIFACTS=sftp://${SFTP_USER}:${SFTP_PW}@localhost:2222/mlflow/artifacts
+        volumes:
+            - ./artifacts:/mlflowserver
+            - ./keys/ssh_sftp_key:/root/.ssh/keys/ssh_sftp_key:ro
+            - ./keys/config:/root/.ssh/config:ro
+        links:
+            - "mlflowsftp:mlflowsftp"
+        command: >
+            bash -c "sleep 3
+            && ssh-keyscan -H mlflowsftp >> ~/.ssh/known_hosts
+            && mlflow server --port 5001 --host 0.0.0.0 --backend-store-uri postgresql://postgres:hy77hv2SubR@db:5432/mlflowdb --default-artifact-root sftp://mlflow@mlflowsftp:2222/mlflow/artifacts"
+        depends_on:
+            - db
+            - mlflowsftp
+
+    nginx:
+        restart: always
+        build: ./nginx
+        image: mlflow_nginx
+        container_name: mlflow_nginx
+        ports:
+            - "80:80"
+        networks:
+            - frontend
+        depends_on:
+            - mlflowserver
+
+networks:
+    frontend:
+        driver: bridge
+    backend:
+        driver: bridge
+
+volumes:
+    db_datapg:
