@@ -34,7 +34,7 @@ services:
     offline_pgdb:
         restart: always
         image: postgres:latest
-        container_name: main_pgdb
+        container_name: offline_pgdb
         ports:
             - ${OFFLINE_PGDB_PORT}:${OFFLINE_PGDB_PORT}
         environment:
@@ -49,7 +49,7 @@ services:
     online_pgdb:
         restart: always
         image: postgres:latest
-        container_name: ONLINE_pgdb
+        container_name: online_pgdb
         ports:
             - ${ONLINE_PGDB_PORT}:${ONLINE_PGDB_PORT}
         environment:
