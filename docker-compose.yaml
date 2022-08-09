@@ -21,7 +21,7 @@ services:
         image: postgres:latest
         container_name: main_pgdb
         ports:
-            - ${MAIN_PGDB_PORT}:${MAIN_PGDB_PORT}
+            - ${MAIN_PGDB_PORT}:5432
         environment:
             - MUID=$UID
             - MGID=$GID
@@ -36,7 +36,7 @@ services:
         image: postgres:latest
         container_name: offline_pgdb
         ports:
-            - ${OFFLINE_PGDB_PORT}:${OFFLINE_PGDB_PORT}
+            - ${OFFLINE_PGDB_PORT}:5432
         environment:
             - MUID=$UID
             - MGID=$GID
@@ -51,7 +51,7 @@ services:
         image: postgres:latest
         container_name: online_pgdb
         ports:
-            - ${ONLINE_PGDB_PORT}:${ONLINE_PGDB_PORT}
+            - ${ONLINE_PGDB_PORT}:5432
         environment:
             - MUID=$UID
             - MGID=$GID
