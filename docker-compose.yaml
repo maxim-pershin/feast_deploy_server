@@ -1,91 +1,68 @@
-# This version hides the underlying postgres database on a backend network
-# different from the frontend network on which nginx interfaces mlflow.
-# And mlflow is hidden behind nginx, allowing user auth to be implemented.
-#
+# This version creates 3 postgres databases for Feast (main store, offline store, online store)
 # Have the following environment vars set in shell before running docker-compose
 # (suggested values here but can use whatever desired):
-# export DB_NAME=mlflowdb
-# export DB_USER=postgres
+# export MAIN_PGDB_NAME=#
+# export MAIN_PGDB_USER=#
+# export MAIN_PGDB_PASS=#
+# export MAIN_PGDB_PORT=#
+# export OFFLINE_PGDB_NAME=#
+# export OFFLINE_PGDB_USER=#
+# export OFFLINE_PGDB_PASS=#
+# export OFFLINE_PGDB_PORT=#
+# export ONLINE_PGDB_NAME=#
+# export ONLINE_PGDB_USER=#
+# export ONLINE_PGDB_PASS=#
+# export ONLINE_PGDB_PORT=#
 
 services:
 
-    db:
+    main_pgdb:
         restart: always
         image: postgres:latest
-        container_name: mlflow_db
-        expose:
-            - ${DB_PORT}
-        networks:
-            - backend
+        container_name: main_pgdb
+        ports:
+            - ${MAIN_PGDB_PORT}:${MAIN_PGDB_PORT}
         environment:
             - MUID=$UID
             - MGID=$GID
-            - POSTGRES_DB=${DB_NAME}
-            - POSTGRES_USER=${DB_USER}
-            - POSTGRES_PASSWORD=${DB_PW}
+            - POSTGRES_DB=${MAIN_PGDB_NAME}
+            - POSTGRES_USER=${MAIN_PGDB_USER}
+            - POSTGRES_PASSWORD=${MAIN_PGDB_PASS}
         volumes:
-            - db_datapg:/var/lib/postgresql/data
+            - main_pgdb_data:/var/lib/postgresql/main_pgdb_data
 
-    mlflowsftp:
+    offline_pgdb:
         restart: always
-        image: atmoz/sftp
-        container_name: mlflowsftp
-        working_dir: "/home/mlflow"
-        volumes:
-            - ./mlflow/artifacts:/home/mlflow/artifacts
-            - ./keys/ssh_sftp_key.pub:/home/mlflow/.ssh/keys/ssh_sftp_key.pub:ro
-            - ./keys/ssh_sftp_key:/etc/ssh/ssh_host_ed25519_key:ro
-        command: mlflow::::artifacts
-#        command: mlflow::1001 labs:pass:1002
+        image: postgres:latest
+        container_name: main_pgdb
         ports:
-          - "2222:22"
-        networks:
-            - frontend
-            - backend
-
-    mlflowserver:
-        restart: always
-        build: ./mlflow
-        image: mlflowserver
-        container_name: mlflowserver
-        working_dir: "/mlflowserver"
-        networks:
-            - frontend
-            - backend
+            - ${OFFLINE_PGDB_PORT}:${OFFLINE_PGDB_PORT}
         environment:
-            - BACKEND=postgresql://${DB_USER}:${DB_PW}@db:${DB_PORT}/${DB_NAME}
-            - ARTIFACTS=sftp://${SFTP_USER}:${SFTP_PW}@localhost:2222/mlflow/artifacts
+            - MUID=$UID
+            - MGID=$GID
+            - POSTGRES_DB=${OFFLINE_PGDB_NAME}
+            - POSTGRES_USER=${OFFLINE_PGDB_USER}
+            - POSTGRES_PASSWORD=${OFFLINE_PGDB_PASS}
         volumes:
-            - ./artifacts:/mlflowserver
-            - ./keys/ssh_sftp_key:/root/.ssh/keys/ssh_sftp_key:ro
-            - ./keys/config:/root/.ssh/config:ro
-        links:
-            - "mlflowsftp:mlflowsftp"
-        command: >
-            bash -c "sleep 3
-            && ssh-keyscan -H mlflowsftp >> ~/.ssh/known_hosts
-            && mlflow server --port 5001 --host 0.0.0.0 --backend-store-uri postgresql://postgres:hy77hv2SubR@db:5432/mlflowdb --default-artifact-root sftp://mlflow@mlflowsftp:2222/mlflow/artifacts"
-        depends_on:
-            - db
-            - mlflowsftp
+            - offline_pgdb_data:/var/lib/postgresql/offline_pgdb_data
 
-    nginx:
+    online_pgdb:
         restart: always
-        build: ./nginx
-        image: mlflow_nginx
-        container_name: mlflow_nginx
+        image: postgres:latest
+        container_name: ONLINE_pgdb
         ports:
-            - "80:80"
-        networks:
-            - frontend
-        depends_on:
-            - mlflowserver
+            - ${ONLINE_PGDB_PORT}:${ONLINE_PGDB_PORT}
+        environment:
+            - MUID=$UID
+            - MGID=$GID
+            - POSTGRES_DB=${ONLINE_PGDB_NAME}
+            - POSTGRES_USER=${ONLINE_PGDB_USER}
+            - POSTGRES_PASSWORD=${ONLINE_PGDB_PASS}
+        volumes:
+            - online_pgdb_data:/var/lib/postgresql/online_pgdb_data
 
-networks:
-    frontend:
-        driver: bridge
-    backend:
-        driver: bridge
 
 volumes:
-    db_datapg:
+    main_pgdb_data:
+    offline_pgdb_data:
+    online_pgdb_data:
