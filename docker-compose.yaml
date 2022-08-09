@@ -1,10 +1,6 @@
 # This version creates 3 postgres databases for Feast (main store, offline store, online store)
 # Have the following environment vars set in shell before running docker-compose
 # (suggested values here but can use whatever desired):
-# export MAIN_PGDB_NAME=#
-# export MAIN_PGDB_USER=#
-# export MAIN_PGDB_PASS=#
-# export MAIN_PGDB_PORT=#
 # export OFFLINE_PGDB_NAME=#
 # export OFFLINE_PGDB_USER=#
 # export OFFLINE_PGDB_PASS=#
@@ -15,21 +11,6 @@
 # export ONLINE_PGDB_PORT=#
 
 services:
-
-    main_pgdb:
-        restart: always
-        image: postgres:latest
-        container_name: main_pgdb
-        ports:
-            - ${MAIN_PGDB_PORT}:5432
-        environment:
-            - MUID=$UID
-            - MGID=$GID
-            - POSTGRES_DB=${MAIN_PGDB_NAME}
-            - POSTGRES_USER=${MAIN_PGDB_USER}
-            - POSTGRES_PASSWORD=${MAIN_PGDB_PASS}
-        volumes:
-            - main_pgdb_data:/var/lib/postgresql/main_pgdb_data
 
     offline_pgdb:
         restart: always
@@ -63,6 +44,5 @@ services:
 
 
 volumes:
-    main_pgdb_data:
     offline_pgdb_data:
     online_pgdb_data:
